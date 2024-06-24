@@ -1,0 +1,137 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% load admin_urls %}
+{% load import_export_tags %}
+{% load static %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "import_export/import.css" %}" />{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+  <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+  {% if confirm_form %}
+    {{ confirm_form.media }}
+  {% else %}
+    {{ form.media }}
+  {% endif %}
+{% endblock %}
+
+{% block breadcrumbs_last %}
+{% trans "Report" %}
+{% endblock %}
+
+{% block content %}
+
+  {% if confirm_form %}
+    {% block confirm_import_form %}
+    <fieldset class="module aligned">
+        <form action="{% url opts|admin_urlname:"generate_report" %}" method="POST">
+        {% csrf_token %}
+        {{ confirm_form.as_p }}
+        <div class="submit-row">
+            <input type="submit" class="default" name="confirm" value="Show Report">
+        </div>
+        </form>
+    </fieldset>
+    {% endblock %}
+  {% else %}
+    {% block import_form %}
+    <form action="" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      {% block form_detail %}
+          <fieldset class="module aligned">
+          {% for field in form %}
+            <div class="form-row">
+              {{ field.errors }}
+
+              {{ field.label_tag }}
+
+              {{ field }}
+
+              {% if field.field.help_text %}
+              <p class="help">{{ field.field.help_text|safe }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </fieldset>
+      {% endblock %}
+
+      {% block form_submit_button %}
+        <div class="submit-row">
+          <input type="submit" class="default" value="Select Report">
+        </div>
+      {% endblock %}
+    </form>
+    {% endblock %}
+  {% endif %}
+
+  {% if uri_dashboard %}
+      <iframe width="100%" 
+          height="600" 
+          src='{{uri_dashboard}}'
+          frameborder="0" 
+          style="border:0" allowfullscreen>
+      </iframe>
+    {% endif %}
+
+  {% if resultados %}
+        <div id="gridContainer">
+            <div id="dataGrid"></div>
+            <script>
+               (function($) {
+                $(document).ready(function() {
+                    // Get keys (column names) from a result
+                    let data = {{ resultados|safe }};
+                    var columns = Object.keys(data[0]);
+                    // Dynamically build column configurations
+                    var columnDefinitions = columns.map(function (column) {
+                        
+                        return { 
+                          width: 200,
+                          dataField: column, 
+                          caption: column,
+                          summaryType: 'count',  // Summary type: count
+                          showInGroupFooter: true  // Show in group footer
+                        };
+                    });
+
+                    // Use the results to load data into the datagrid
+                    var gridOptions = {
+                        dataSource: data,
+                        columns: columnDefinitions,
+                        rowAlternationEnabled: true,
+                        showBorders: true,
+                        allowColumnHeadersDragging: true,
+                        columnFixing: {
+                            enabled: true,
+                        },
+                        sorting: {
+                            mode: 'multiple',
+                        },
+                        filterRow: { visible: true, applyFilter: 'auto' },
+                        searchPanel: { visible: true, width: 240, placeholder: "Search..." }, 
+                        headerFilter: { visible: true },
+                        export: {
+                            enabled: true,
+                            fileName: 'report',
+                            allowExportSelectedData: true,
+                        },
+                        groupPanel: { visible: true },
+                        summary: {
+                          groupItems: [{
+                            column: columns[0],
+                            summaryType: 'count',
+                          }],
+                        },
+                    };
+
+                    // Create the DevExpress data grid
+                    var dataGrid = $("#dataGrid").dxDataGrid(gridOptions);
+
+                });
+              })(django.jQuery);
+            </script>
+        </div>
+    {% endif %}
+
+{% endblock %}
